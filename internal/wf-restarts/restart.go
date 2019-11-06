@@ -6,13 +6,14 @@ import (
 	"fmt"
 	v1 "k8s.io/api/apps/v1"
 	//"sort"
+	"time"
+
 	//"time"
 
 	//"k8s.io/client-go/util/retry"
 	"os"
 	"path/filepath"
 
-	//appsv1 "k8s.io/api/apps/v1"
 	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -135,8 +136,8 @@ func main() {
 
 	// List Deployments
 	prompt()
-
-	listAllDeployments(clientset)
+	getOldestPod(clientset)
+	//listAllDeployments(clientset)
 
 	//for _, d1 := range list.Items {
 	//
@@ -178,31 +179,47 @@ func getAllPods(clientset *kubernetes.Clientset) (*apiv1.PodList, error) {
 
 	// get all pods
 	fmt.Println("Printing all pods...")
+
 	pods, err := clientset.CoreV1().Pods("default").List(metav1.ListOptions{})
 
 	if err != nil {
 		panic(err)
 	}
 
-//	sort.Slice(pods, func(i, j int) bool { return pods[i].GetCreationTimestamp() < pods[i].GetCreationTimestamp()})
-
-	fmt.Println("Done printing all pods...")
+	for _, pod := range pods.Items {
+		fmt.Printf(" Pod Name: {%s}, pod Age:  * %s \n", pod.GetName(), pod.GetCreationTimestamp().Time)
+	}
 	return pods, err
 }
 
-func getOldestPod(clientset *kubernetes.Clientset) {
-	//pods , err := getAllPods(clientset)
-	//if err != nil {
-	//	panic(err)
-	//}
-	//for _, pod := range pods.Items {
-	//	//fmt.Printf(" pod:  * %s \n", pod.Status);
-	//	age := time.Since(pod.GetCreationTimestamp().Time).Round(time.Second)
-	//	sort.Slice(pods, func(i, j int) bool { return pods[i].GetCreationTimestamp() < pods[i].GetCreationTimestamp()})
-	//	fmt.Printf(" Pod Name: {%s}, pod Age:  * %s \n", pod.GetName(), age);
-	//}
-	////
+func getOldestPod(clientset *kubernetes.Clientset) (apiv1.Pod) {
+	pods , err := getAllPods(clientset)
+
+	if err != nil {
+		panic(err)
+	}
 	//
+	var oldestPod apiv1.Pod
+	var max_age time.Time;
+	//max_age := time.Unix(1<<63-1, 0)
+	for _, pod := range pods.Items {
+		//fmt.Printf(" pod:  * %s \n", pod.Status);
+		age := pod.GetCreationTimestamp().Time
+		if(max_age.IsZero()){
+			max_age = age
+			oldestPod = pod
+		}else{
+			if(age.Before(max_age)){
+				max_age = age
+				oldestPod = pod
+			}
+		}
+
+	}
+
+	fmt.Println(max_age)
+	fmt.Printf(" Pod Name: {%s}, pod Age:  * %s \n", oldestPod.GetName(), oldestPod.GetCreationTimestamp().Time)
+	return oldestPod
 }
 
 func listAllDeployments(clientset *kubernetes.Clientset){
@@ -224,8 +241,8 @@ func getDeployment(clientset *kubernetes.Clientset) (*v1.Deployment, error) {
 	fmt.Printf("Listing deployments in namespace %q:\n", apiv1.NamespaceDefault)
 
 	return deploymentsClient.Get("wf-query-service", metav1.GetOptions{})
-
 }
+
 
 func doNodesHavePods(clientset *kubernetes.Clientset) error {
 	nodeLabelSelector := "nodelabel=interesting_nodes"
