@@ -136,7 +136,7 @@ func main() {
 
 	// List Deployments
 	prompt()
-	getOldestPod(clientset)
+	deleteOldestPod(clientset)
 	//listAllDeployments(clientset)
 
 	//for _, d1 := range list.Items {
@@ -181,13 +181,12 @@ func getAllPods(clientset *kubernetes.Clientset) (*apiv1.PodList, error) {
 	fmt.Println("Printing all pods...")
 
 	pods, err := clientset.CoreV1().Pods("default").List(metav1.ListOptions{})
-
 	if err != nil {
 		panic(err)
 	}
 
 	for _, pod := range pods.Items {
-		fmt.Printf(" Pod Name: {%s}, pod Age:  * %s \n", pod.GetName(), pod.GetCreationTimestamp().Time)
+		fmt.Printf(" Pod Name: {%v}, pod Age:  * %s \n", pod.Name, pod.GetCreationTimestamp().Time)
 	}
 	return pods, err
 }
@@ -217,7 +216,6 @@ func getOldestPod(clientset *kubernetes.Clientset) (apiv1.Pod) {
 
 	}
 
-	fmt.Println(max_age)
 	fmt.Printf(" Pod Name: {%s}, pod Age:  * %s \n", oldestPod.GetName(), oldestPod.GetCreationTimestamp().Time)
 	return oldestPod
 }
@@ -237,9 +235,13 @@ func listAllDeployments(clientset *kubernetes.Clientset){
 
 func getDeployment(clientset *kubernetes.Clientset) (*v1.Deployment, error) {
 	deploymentsClient := clientset.AppsV1().Deployments(apiv1.NamespaceDefault)
-
+	//replicaClient, err := clientset.AppsV1().ReplicaSets("").Get("",metav1.GetOptions{})
+	//
+	//if err != nil {
+	//	return nil, err
+	//}
 	fmt.Printf("Listing deployments in namespace %q:\n", apiv1.NamespaceDefault)
-
+	deploymentsClient.Get("", metav1.GetOptions{})
 	return deploymentsClient.Get("wf-query-service", metav1.GetOptions{})
 }
 
@@ -277,6 +279,22 @@ func doNodesHavePods(clientset *kubernetes.Clientset) error {
 	return nil
 }
 
+func deleteOldestPod(clientset *kubernetes.Clientset) error{
+
+	oldestPod := getOldestPod(clientset)
+
+	clientset.CoreV1().Namespaces().Get("", metav1.GetOptions{})
+
+	//deploymentsClient, err1 := clientset.AppsV1().Deployments("").Get("", metav1.GetOptions{})
+	//if err1 != nil {
+	//	return err1
+	//}
+	//deploymentsClient.Status.Replicas
+	err := clientset.CoreV1().Pods("default").Delete(oldestPod.Name, &metav1.DeleteOptions{})
+
+	fmt.Println("Oldest Pod Deleted... * %s " , oldestPod.String())
+	return err
+}
 
 
 func prompt() {
